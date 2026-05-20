@@ -106,14 +106,19 @@ export async function recordAuthSignal(signal: PageAuthSignal): Promise<void> {
   }
 }
 
-/** An OAuth consent flow was observed against a corporate IdP. */
-export async function recordOAuthGrant(grant: OAuthGrant): Promise<void> {
-  // Attribute the grant to the app that requested it.
-  const host = grant.redirectHost || grant.requestingApp;
-  const id = appIdFor(host);
+/**
+ * An OAuth consent flow was observed against a corporate IdP.
+ * `attributionHost` is the app the grant belongs to — resolved by the
+ * background worker from the redirect_uri or the originating tab.
+ */
+export async function recordOAuthGrant(
+  grant: OAuthGrant,
+  attributionHost: string,
+): Promise<void> {
+  const id = appIdFor(attributionHost);
   let app = await getApp(id);
   const isNew = !app;
-  if (!app) app = freshApp(id, host);
+  if (!app) app = freshApp(id, attributionHost);
 
   // Dedupe: same provider + same scope set within the last hour.
   const key = grant.provider + '|' + grant.scopes.slice().sort().join(',');

@@ -1,6 +1,6 @@
 import type { RuntimeMessage } from '@/lib/types';
 import { lookupCatalog } from '@/lib/catalog';
-import { parseOAuthGrant } from '@/lib/oauth';
+import { identityProviderFor, parseOAuthGrant } from '@/lib/oauth';
 import { recordAuthSignal, recordOAuthGrant, recordVisit } from '@/lib/inventory';
 
 // ─────────────────────────────────────────────────────────────
@@ -13,16 +13,60 @@ import { recordAuthSignal, recordOAuthGrant, recordVisit } from '@/lib/inventory
 // ─────────────────────────────────────────────────────────────
 
 export default defineBackground(() => {
+  // Per-tab memory of the last real app host. Lets us attribute an
+  // OAuth grant to the app that started it even when the authorize
+  // URL omits redirect_uri (GitHub treats it as optional).
+  const tabAppHost = new Map<number, string>();
+
   // ── OAuth consent detection ────────────────────────────────
-  browser.webNavigation.onBeforeNavigate.addListener((details) => {
+  browser.webNavigation.onBeforeNavigate.addListener(async (details) => {
+    if (details.frameId !== 0) return;
+
+    let hostname = '';
+    try {
+      hostname = new URL(details.url).hostname;
+    } catch {
+      return;
+    }
+    if (!identityProviderFor(hostname)) return;
+
     const grant = parseOAuthGrant(details.url);
-    if (grant && grant.redirectHost) {
-      void recordOAuthGrant(grant);
+    if (!grant) {
+      console.info('[OwlScout] identity-provider navigation (no client_id):', hostname);
+      return;
+    }
+
+    // Attribute the grant: prefer the redirect host, then the tab the
+    // flow started in, then — for popup flows — the opener tab.
+    let tabHost = details.tabId >= 0 ? tabAppHost.get(details.tabId) : undefined;
+    if (!tabHost && details.tabId >= 0) {
+      try {
+        const tab = await browser.tabs.get(details.tabId);
+        if (tab.openerTabId != null) tabHost = tabAppHost.get(tab.openerTabId);
+      } catch {
+        /* tab gone — ignore */
+      }
+    }
+
+    const candidates = [grant.redirectHost, tabHost].filter(
+      (h): h is string => !!h,
+    );
+    const host = candidates.find((h) => lookupCatalog(h)) ?? candidates[0];
+
+    if (host) {
+      console.info(
+        `[OwlScout] OAuth grant — ${grant.provider} → ${host} · ${grant.scopes.length} scope(s)`,
+      );
+      void recordOAuthGrant(grant, host);
+    } else {
+      console.info(
+        `[OwlScout] OAuth flow seen (${grant.provider}) but could not attribute an app`,
+      );
     }
   });
 
-  // ── Visit detection for catalogued SaaS apps ───────────────
-  browser.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  // ── Visit detection + per-tab app-host tracking ────────────
+  browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status !== 'complete' || !tab.url) return;
     let host: string;
     try {
@@ -32,11 +76,19 @@ export default defineBackground(() => {
     } catch {
       return;
     }
-    // Only auto-record catalogued apps here; unrecognised apps are
-    // discovered through the content script's auth-surface signal.
+    // Remember the tab's app host — but never an identity provider.
+    if (!identityProviderFor(host)) {
+      tabAppHost.set(tabId, host);
+    }
+    // Auto-record catalogued apps; unrecognised apps are discovered
+    // through the content script's auth-surface signal.
     if (lookupCatalog(host)) {
       void recordVisit(host);
     }
+  });
+
+  browser.tabs.onRemoved.addListener((tabId) => {
+    tabAppHost.delete(tabId);
   });
 
   // ── Content-script auth-surface signals ────────────────────
@@ -46,4 +98,6 @@ export default defineBackground(() => {
     }
     return undefined;
   });
+
+  console.info('[OwlScout] service worker ready — watching for SaaS + OAuth activity');
 });

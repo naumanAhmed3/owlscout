@@ -2,64 +2,45 @@ import type { IdentityProvider, OAuthGrant } from './types';
 import { lookupCatalog, registrableDomain } from './catalog';
 
 // ─────────────────────────────────────────────────────────────
-// Detects OAuth consent flows against corporate identity
-// providers. A consent screen URL carries client_id / redirect_uri
-// / scope — enough to say "App X just asked for Y access to your
-// Google/Microsoft/GitHub account."
+// Detects OAuth / federated sign-in flows against corporate
+// identity providers. Rather than match exact authorize paths
+// (which drift — Google alone has /o/oauth2/v2/auth, /signin/oauth,
+// /gsi/...), we key off the reliable signal: an IdP host carrying a
+// `client_id` query parameter. That is an OAuth flow, full stop.
 // ─────────────────────────────────────────────────────────────
 
-interface ProviderMatcher {
-  provider: IdentityProvider;
-  /** Returns true when the URL is that provider's OAuth authorize endpoint. */
-  test: (u: URL) => boolean;
+const IDP_HOSTS: Record<string, IdentityProvider> = {
+  'accounts.google.com': 'google',
+  'oauth2.googleapis.com': 'google',
+  'login.microsoftonline.com': 'microsoft',
+  'login.live.com': 'microsoft',
+  'login.microsoft.com': 'microsoft',
+  'github.com': 'github',
+  'appleid.apple.com': 'apple',
+};
+
+/** Identify the IdP for a hostname, if any. */
+export function identityProviderFor(hostname: string): IdentityProvider | null {
+  if (IDP_HOSTS[hostname]) return IDP_HOSTS[hostname];
+  if (/\.okta\.com$/.test(hostname)) return 'okta';
+  return null;
 }
 
-const PROVIDERS: ProviderMatcher[] = [
-  {
-    provider: 'google',
-    test: (u) =>
-      u.hostname === 'accounts.google.com' &&
-      /\/o\/oauth2\/(v2\/)?auth|\/signin\/oauth/.test(u.pathname),
-  },
-  {
-    provider: 'microsoft',
-    test: (u) =>
-      (u.hostname === 'login.microsoftonline.com' && /\/oauth2\//.test(u.pathname) && /authorize/.test(u.pathname)) ||
-      (u.hostname === 'login.live.com' && u.pathname.startsWith('/oauth20_authorize')),
-  },
-  {
-    provider: 'github',
-    test: (u) => u.hostname === 'github.com' && u.pathname === '/login/oauth/authorize',
-  },
-  {
-    provider: 'apple',
-    test: (u) => u.hostname === 'appleid.apple.com' && u.pathname.startsWith('/auth/authorize'),
-  },
-  {
-    provider: 'okta',
-    test: (u) => /\.okta\.com$/.test(u.hostname) && /\/oauth2\/.*\/authorize/.test(u.pathname),
-  },
-];
-
-/** Google API scopes considered broad / high-impact. */
+/** Broad / high-impact scope patterns across providers. */
 const SENSITIVE_SCOPE_PATTERNS = [
   /drive(?!\.appdata)/i,
   /gmail|mail\.(read|send|modify)/i,
   /calendar/i,
   /contacts|directory/i,
-  /spreadsheets/i,
-  /\buser\b|userinfo\.email/i,
-  // Microsoft Graph
-  /Mail\.|Files\.|Directory\.|User\.Read\.All|Sites\.|offline_access/i,
-  // GitHub
-  /^repo$|admin:|write:|read:org|delete_repo/i,
+  /spreadsheets|documents|presentations/i,
+  /Mail\.|Files\.|Directory\.|Sites\.|User\.Read\.All|offline_access/i,
+  /^repo$|^admin:|^write:|^delete_repo$|read:org/i,
 ];
 
 function isSensitiveScope(scope: string): boolean {
   return SENSITIVE_SCOPE_PATTERNS.some((re) => re.test(scope));
 }
 
-/** Human-friendly app name from a redirect_uri host. */
 function appNameFromHost(host: string): string {
   const entry = lookupCatalog(host);
   if (entry) return entry.name;
@@ -69,8 +50,8 @@ function appNameFromHost(host: string): string {
 }
 
 /**
- * Parse an OAuth authorize URL into a grant record, or null if the
- * URL is not a recognised consent endpoint.
+ * Parse an OAuth / sign-in URL into a grant record, or null if the URL
+ * is not a recognised IdP consent flow.
  */
 export function parseOAuthGrant(rawUrl: string): OAuthGrant | null {
   let u: URL;
@@ -80,18 +61,30 @@ export function parseOAuthGrant(rawUrl: string): OAuthGrant | null {
     return null;
   }
 
-  const match = PROVIDERS.find((p) => p.test(u));
-  if (!match) return null;
+  const provider = identityProviderFor(u.hostname);
+  if (!provider) return null;
+
+  // github.com is also a normal site — only its authorize path counts.
+  if (provider === 'github' && !u.pathname.startsWith('/login/oauth/')) {
+    return null;
+  }
 
   const clientId = u.searchParams.get('client_id') ?? '';
-  const redirectUri = u.searchParams.get('redirect_uri') ?? '';
-  const rawScope = u.searchParams.get('scope') ?? '';
-  // Scopes are space-delimited (occasionally comma, e.g. GitHub).
+  // Every OAuth / federated sign-in flow carries a client_id. Without
+  // one, this is just the user browsing the IdP — ignore it.
+  if (!clientId) return null;
+
+  const rawScope =
+    u.searchParams.get('scope') ?? u.searchParams.get('scopes') ?? '';
   const scopes = rawScope
     .split(/[\s,+]+/)
     .map((s) => s.trim())
     .filter(Boolean);
 
+  const redirectUri =
+    u.searchParams.get('redirect_uri') ??
+    u.searchParams.get('redirect_to') ??
+    '';
   let redirectHost = '';
   try {
     redirectHost = redirectUri ? new URL(redirectUri).hostname : '';
@@ -99,15 +92,9 @@ export function parseOAuthGrant(rawUrl: string): OAuthGrant | null {
     redirectHost = '';
   }
 
-  // Identify the requesting app: prefer the redirect host, fall back
-  // to nothing useful (an opaque client_id alone isn't attributable).
-  const requestingApp = redirectHost
-    ? appNameFromHost(redirectHost)
-    : 'Unknown application';
-
   return {
-    provider: match.provider,
-    requestingApp,
+    provider,
+    requestingApp: redirectHost ? appNameFromHost(redirectHost) : 'Unknown application',
     redirectHost,
     clientId,
     scopes,
@@ -120,5 +107,6 @@ export function parseOAuthGrant(rawUrl: string): OAuthGrant | null {
 export function prettyScope(scope: string): string {
   return scope
     .replace(/^https:\/\/www\.googleapis\.com\/auth\//, '')
-    .replace(/^https:\/\/graph\.microsoft\.com\//, '');
+    .replace(/^https:\/\/graph\.microsoft\.com\//, '')
+    .replace(/^openid$/, 'openid');
 }
