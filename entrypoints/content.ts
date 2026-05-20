@@ -3,7 +3,7 @@ import type { AuthMethod, PageAuthSignal, RuntimeMessage } from '@/lib/types';
 // ─────────────────────────────────────────────────────────────
 // Content script — reads the auth surface of a page (password
 // fields, social / SSO sign-in buttons) and reports it once.
-// This is how OwlScout discovers SaaS apps that aren't in the
+// This is how Lantern discovers SaaS apps that aren't in the
 // bundled catalog: any page with a real login surface counts.
 // ─────────────────────────────────────────────────────────────
 

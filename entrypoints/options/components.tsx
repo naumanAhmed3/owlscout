@@ -9,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import type { AppEvent, DiscoveredApp, InventorySummary } from '@/lib/types';
+import type { Insight, InsightId } from '@/lib/insights';
 import { getEventsForApp } from '@/lib/db';
 import { prettyScope } from '@/lib/oauth';
 import {
@@ -51,7 +52,7 @@ export function StatCard({
           ? 'ring-emerald-500/20'
           : 'ring-edge';
   return (
-    <div className={`bg-surface rounded-xl ring-1 ${toneRing} p-4 owl-fade-up`}>
+    <div className={`bg-surface rounded-xl ring-1 ${toneRing} p-4 lantern-fade-up`}>
       <div className="flex items-center justify-between">
         <span className="text-[11px] uppercase tracking-wider text-neutral-500">{label}</span>
         {icon}
@@ -204,7 +205,7 @@ export function AppDrawer({
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md h-full bg-ink ring-1 ring-edge overflow-y-auto owl-fade-up">
+      <div className="relative w-full max-w-md h-full bg-ink ring-1 ring-edge overflow-y-auto lantern-fade-up">
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-edge-soft">
           <div className="flex items-center gap-3">
@@ -265,7 +266,7 @@ export function AppDrawer({
 
         {/* OAuth grants */}
         <Section
-          icon={<KeyRound className="w-4 h-4 text-owl" />}
+          icon={<KeyRound className="w-4 h-4 text-accent" />}
           title={`OAuth grants (${app.oauthGrants.length})`}
         >
           {app.oauthGrants.length === 0 ? (
@@ -312,7 +313,7 @@ export function AppDrawer({
                 <span
                   className={`absolute -left-[11px] top-1 w-2.5 h-2.5 rounded-full ring-2 ring-ink ${
                     e.type === 'oauth-grant'
-                      ? 'bg-owl'
+                      ? 'bg-accent'
                       : e.type === 'sso-detected'
                         ? 'bg-emerald-400'
                         : 'bg-neutral-600'
@@ -355,7 +356,7 @@ function Section({
 const SIGNAL_META: Record<SignalKind, { color: string; label: string }> = {
   system: { color: 'bg-neutral-500', label: 'System' },
   'idp-nav': { color: 'bg-sky-400', label: 'Identity' },
-  oauth: { color: 'bg-owl', label: 'OAuth' },
+  oauth: { color: 'bg-accent', label: 'OAuth' },
   auth: { color: 'bg-violet-400', label: 'Login' },
   visit: { color: 'bg-neutral-600', label: 'Visit' },
 };
@@ -377,7 +378,7 @@ export function ActivityLog() {
     <div className="bg-surface rounded-xl ring-1 ring-edge p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Radio className="w-4 h-4 text-owl" />
+          <Radio className="w-4 h-4 text-accent" />
           <span className="text-[11px] uppercase tracking-wider text-neutral-400">
             Live activity
           </span>
@@ -400,7 +401,7 @@ export function ActivityLog() {
 
       {!inExtension ? (
         <p className="text-xs text-neutral-600 py-4 text-center">
-          Live activity streams here when OwlScout runs as an installed extension.
+          Live activity streams here when Lantern runs as an installed extension.
         </p>
       ) : entries.length === 0 ? (
         <p className="text-xs text-neutral-600 py-4 text-center">
@@ -429,21 +430,88 @@ export function ActivityLog() {
   );
 }
 
+// ── Insights — "needs attention" ─────────────────────────────
+export function InsightsPanel({
+  insights,
+  focus,
+  onSelect,
+}: {
+  insights: Insight[];
+  focus: InsightId | null;
+  onSelect: (id: InsightId | null) => void;
+}) {
+  if (insights.length === 0) {
+    return (
+      <div className="bg-surface rounded-xl ring-1 ring-emerald-500/20 p-4 flex items-center gap-3">
+        <div className="grid place-items-center w-9 h-9 rounded-lg bg-emerald-500/10">
+          <ShieldCheck className="w-5 h-5 text-emerald-400" />
+        </div>
+        <div>
+          <div className="text-sm font-medium">Nothing needs attention</div>
+          <div className="text-xs text-neutral-500">
+            No high-risk apps, broad OAuth grants, or SSO gaps in the current inventory.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-wider text-neutral-500 mb-2">
+        Needs attention
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {insights.map((ins) => {
+          const active = focus === ins.id;
+          const numClass = ins.severity === 'high' ? 'text-rose-300' : 'text-amber-300';
+          return (
+            <button
+              key={ins.id}
+              onClick={() => onSelect(active ? null : ins.id)}
+              className={`text-left rounded-xl ring-1 p-3.5 transition-all ${
+                active
+                  ? 'ring-accent/60 bg-accent/10'
+                  : 'ring-edge bg-surface hover:bg-surface-2'
+              }`}
+            >
+              <div className="flex items-baseline gap-2">
+                <span className={`text-2xl font-semibold font-mono ${numClass}`}>
+                  {ins.count}
+                </span>
+                <span className="text-sm font-medium">{ins.title}</span>
+              </div>
+              <p className="text-[11px] text-neutral-500 mt-1 leading-snug">{ins.detail}</p>
+              <div
+                className={`text-[10px] mt-2 font-medium ${
+                  active ? 'text-accent' : 'text-neutral-600'
+                }`}
+              >
+                {active ? 'Filtering the list ↓' : 'Review →'}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Empty state ──────────────────────────────────────────────
 export function EmptyState({ onSeed }: { onSeed: () => void }) {
   return (
     <div className="grid place-items-center py-24 text-center">
       <div className="grid place-items-center w-16 h-16 rounded-2xl bg-surface ring-1 ring-edge mb-4">
-        <ShieldCheck className="w-7 h-7 text-owl" />
+        <ShieldCheck className="w-7 h-7 text-accent" />
       </div>
       <h2 className="text-lg font-semibold">No apps in the inventory yet</h2>
       <p className="text-sm text-neutral-500 mt-1.5 max-w-sm leading-relaxed">
-        OwlScout builds this inventory passively as you browse. To explore the dashboard
+        Lantern builds this inventory passively as you browse. To explore the dashboard
         right now, load a realistic sample inventory of a mid-size company.
       </p>
       <button
         onClick={onSeed}
-        className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-owl text-ink text-sm font-semibold hover:bg-owl/90 transition-colors"
+        className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-ink text-sm font-semibold hover:bg-accent/90 transition-colors"
       >
         <Sparkles className="w-4 h-4" />
         Load sample inventory

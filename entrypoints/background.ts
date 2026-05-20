@@ -5,7 +5,7 @@ import { recordAuthSignal, recordOAuthGrant, recordVisit } from '@/lib/inventory
 import { appendLog } from '@/lib/log';
 
 // ─────────────────────────────────────────────────────────────
-// OwlScout service worker — the discovery brain.
+// Lantern service worker — the discovery brain.
 //  • webNavigation  → catch OAuth consent flows
 //  • tabs.onUpdated → catch visits to known SaaS apps
 //  • runtime.onMessage → content-script auth-surface signals
@@ -33,7 +33,7 @@ export default defineBackground(() => {
 
     const grant = parseOAuthGrant(details.url);
     if (!grant) {
-      console.info('[OwlScout] identity-provider navigation (no client_id):', hostname);
+      console.info('[Lantern] identity-provider navigation (no client_id):', hostname);
       void appendLog('idp-nav', `Visited ${hostname} (sign-in page, no OAuth params)`);
       return;
     }
@@ -57,7 +57,7 @@ export default defineBackground(() => {
 
     if (host) {
       console.info(
-        `[OwlScout] OAuth grant — ${grant.provider} → ${host} · ${grant.scopes.length} scope(s)`,
+        `[Lantern] OAuth grant — ${grant.provider} → ${host} · ${grant.scopes.length} scope(s)`,
       );
       void appendLog(
         'oauth',
@@ -66,7 +66,7 @@ export default defineBackground(() => {
       );
       void recordOAuthGrant(grant, host);
     } else {
-      console.info(`[OwlScout] OAuth flow seen (${grant.provider}) — unattributed`);
+      console.info(`[Lantern] OAuth flow seen (${grant.provider}) — unattributed`);
       void appendLog(
         'oauth',
         `OAuth flow via ${grant.provider} seen, but the requesting app could not be identified`,
@@ -116,6 +116,6 @@ export default defineBackground(() => {
     return undefined;
   });
 
-  console.info('[OwlScout] service worker ready — watching for SaaS + OAuth activity');
-  void appendLog('system', 'OwlScout is watching — browse normally');
+  console.info('[Lantern] service worker ready — watching for SaaS + OAuth activity');
+  void appendLog('system', 'Lantern is watching — browse normally');
 });

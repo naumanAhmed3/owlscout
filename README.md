@@ -1,11 +1,11 @@
-# OwlScout — Shadow-IT Discovery
+# Lantern — Shadow-IT Discovery
 
 A Chrome MV3 browser extension that discovers the SaaS apps a browser
 actually touches, maps **OAuth grants against corporate identity**, and
 scores **shadow-IT risk** — entirely locally. Nothing ever leaves the
 browser.
 
-**[▶ Live dashboard demo](https://owlscout.vercel.app)** · loads a
+**[▶ Live dashboard demo](https://lantern-shadow-it.vercel.app)** · loads a
 realistic seeded inventory so you can explore without installing.
 
 ---
@@ -18,7 +18,7 @@ account with a click, and grant standing OAuth scopes nobody reviews.
 Vendors make this worse by gating SSO behind a pricier tier — the
 "SSO tax" — which quietly pushes teams toward unmanaged accounts.
 
-OwlScout is the discovery layer: it watches what the browser does and
+Lantern is the discovery layer: it watches what the browser does and
 turns it into a scored, reviewable inventory.
 
 ## What it detects
@@ -105,7 +105,7 @@ demo/                standalone hosted build of the dashboard
 
 ## Privacy
 
-OwlScout is local-first by design. The catalog is bundled, detection
+Lantern is local-first by design. The catalog is bundled, detection
 runs in the browser, and the inventory lives in IndexedDB. There is no
 backend and no analytics — `host_permissions` exist only so the content
 script can read the auth surface of pages you already visit.

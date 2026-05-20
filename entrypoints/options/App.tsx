@@ -10,24 +10,35 @@ import {
   Sparkles,
   Trash2,
   TriangleAlert,
+  X,
 } from 'lucide-react';
 import type { AppCategory, DiscoveredApp, InventorySummary, RiskTier } from '@/lib/types';
 import { clearAll, getAllApps, replaceAll } from '@/lib/db';
 import { summarize } from '@/lib/inventory';
 import { buildDemoData } from '@/lib/demo-data';
+import { buildInsights, appMatchesInsight, type InsightId } from '@/lib/insights';
 import { CATEGORY_LABEL, RISK_META, relativeTime } from '@/lib/ui';
+import { LanternMark } from '@/components/lantern-mark';
 import {
   ActivityLog,
   AppDrawer,
   AppTile,
   AuthChips,
   EmptyState,
+  InsightsPanel,
   RiskBar,
   RiskPill,
   StatCard,
 } from './components';
 
 type SortKey = 'risk' | 'name' | 'lastSeen';
+
+const INSIGHT_TITLE: Record<InsightId, string> = {
+  'high-risk': 'High-risk apps',
+  'oauth-broad': 'Broad OAuth grants',
+  'sso-gap': 'SSO gaps',
+  unmanaged: 'Unmanaged apps',
+};
 
 export default function App() {
   const [apps, setApps] = useState<DiscoveredApp[]>([]);
@@ -39,6 +50,7 @@ export default function App() {
   const [category, setCategory] = useState<AppCategory | 'all'>('all');
   const [risk, setRisk] = useState<RiskTier | 'all'>('all');
   const [sort, setSort] = useState<SortKey>('risk');
+  const [focus, setFocus] = useState<InsightId | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -66,8 +78,11 @@ export default function App() {
     await load();
   };
 
+  const insights = useMemo(() => buildInsights(apps), [apps]);
+
   const filtered = useMemo(() => {
     let list = apps.filter((a) => {
+      if (focus && !appMatchesInsight(a, focus)) return false;
       if (category !== 'all' && a.category !== category) return false;
       if (risk !== 'all' && a.riskTier !== risk) return false;
       if (query) {
@@ -83,7 +98,7 @@ export default function App() {
       return b.riskScore - a.riskScore;
     });
     return list;
-  }, [apps, category, risk, query, sort]);
+  }, [apps, focus, category, risk, query, sort]);
 
   const exportData = (format: 'csv' | 'json') => {
     setExportOpen(false);
@@ -124,7 +139,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `owlscout-inventory.${format}`;
+    a.download = `lantern-inventory.${format}`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -137,11 +152,11 @@ export default function App() {
       <header className="border-b border-edge-soft sticky top-0 z-30 bg-ink/95 backdrop-blur">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid place-items-center w-9 h-9 rounded-xl bg-owl/15 ring-1 ring-owl/30">
-              <Eye className="w-5 h-5 text-owl" />
+            <div className="grid place-items-center w-9 h-9 rounded-xl bg-accent/15 ring-1 ring-accent/30">
+              <LanternMark className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <div className="font-semibold leading-none">OwlScout</div>
+              <div className="font-semibold leading-none">Lantern</div>
               <div className="text-[11px] text-neutral-500 mt-0.5">
                 Shadow-IT discovery · scanned locally, nothing leaves your browser
               </div>
@@ -178,7 +193,7 @@ export default function App() {
             </div>
             <button
               onClick={seed}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-owl text-ink text-sm font-semibold hover:bg-owl/90 transition-colors"
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-accent text-ink text-sm font-semibold hover:bg-accent/90 transition-colors"
             >
               <Sparkles className="w-4 h-4" /> Sample data
             </button>
@@ -224,7 +239,7 @@ export default function App() {
                 label="OAuth grants"
                 value={summary.oauthGrants}
                 hint="on corporate identity"
-                icon={<KeyRound className="w-4 h-4 text-owl" />}
+                icon={<KeyRound className="w-4 h-4 text-accent" />}
               />
               <StatCard
                 label="SSO-taxed"
@@ -239,6 +254,11 @@ export default function App() {
               <ActivityLog />
             </div>
 
+            {/* Needs attention — actionable insights */}
+            <div className="mt-6">
+              <InsightsPanel insights={insights} focus={focus} onSelect={setFocus} />
+            </div>
+
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2 mt-6">
               <div className="relative flex-1 min-w-[200px]">
@@ -247,7 +267,7 @@ export default function App() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search apps…"
-                  className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface ring-1 ring-edge text-sm placeholder:text-neutral-600 focus:outline-none focus:ring-owl/40"
+                  className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface ring-1 ring-edge text-sm placeholder:text-neutral-600 focus:outline-none focus:ring-accent/40"
                 />
               </div>
               <Select
@@ -278,6 +298,17 @@ export default function App() {
                 ]}
               />
             </div>
+
+            {/* Active insight filter chip */}
+            {focus && (
+              <button
+                onClick={() => setFocus(null)}
+                className="mt-3 inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-accent/15 ring-1 ring-accent/40 text-xs text-accent"
+              >
+                Filtered: {INSIGHT_TITLE[focus]}
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
 
             {/* Table */}
             <div className="mt-3 bg-surface rounded-xl ring-1 ring-edge overflow-hidden">
@@ -391,7 +422,7 @@ function Select({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-9 px-3 rounded-lg bg-surface ring-1 ring-edge text-sm text-neutral-300 focus:outline-none focus:ring-owl/40"
+      className="h-9 px-3 rounded-lg bg-surface ring-1 ring-edge text-sm text-neutral-300 focus:outline-none focus:ring-accent/40"
     >
       {options.map(([v, label]) => (
         <option key={v} value={v} className="bg-surface">

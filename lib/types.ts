@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// OwlScout — shared domain types
+// Lantern — shared domain types
 // ─────────────────────────────────────────────────────────────
 
 export type AppCategory =

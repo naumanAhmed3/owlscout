@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
-import {
-  ArrowUpRight,
-  Eye,
-  ShieldAlert,
-  Sparkles,
-  TriangleAlert,
-} from 'lucide-react';
+import { ArrowUpRight, ShieldAlert, Sparkles, TriangleAlert } from 'lucide-react';
+import { LanternMark } from '@/components/lantern-mark';
 import type { DiscoveredApp, InventorySummary } from '@/lib/types';
 import { getAllApps, replaceAll } from '@/lib/db';
 import { summarize } from '@/lib/inventory';
@@ -46,15 +41,15 @@ export default function App() {
   const empty = !state.loading && (!s || s.totalApps === 0);
 
   return (
-    <div className="w-[380px] bg-ink text-[#e7e9ec] owl-fade-up">
+    <div className="w-[380px] bg-ink text-[#e7e9ec] lantern-fade-up">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-edge-soft">
         <div className="flex items-center gap-2">
-          <div className="grid place-items-center w-7 h-7 rounded-lg bg-owl/15 ring-1 ring-owl/30">
-            <Eye className="w-4 h-4 text-owl" />
+          <div className="grid place-items-center w-7 h-7 rounded-lg bg-accent/15 ring-1 ring-accent/30">
+            <LanternMark className="w-4 h-4 text-accent" />
           </div>
           <div>
-            <div className="text-[13px] font-semibold leading-none">OwlScout</div>
+            <div className="text-[13px] font-semibold leading-none">Lantern</div>
             <div className="text-[10px] text-neutral-500 mt-0.5">Shadow-IT discovery</div>
           </div>
         </div>
@@ -70,16 +65,16 @@ export default function App() {
       {empty && (
         <div className="p-6 text-center">
           <div className="mx-auto grid place-items-center w-12 h-12 rounded-xl bg-surface ring-1 ring-edge mb-3">
-            <Sparkles className="w-5 h-5 text-owl" />
+            <Sparkles className="w-5 h-5 text-accent" />
           </div>
           <p className="text-sm text-neutral-300 font-medium">No apps discovered yet</p>
           <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-            OwlScout catalogs SaaS apps as you browse — logins, SSO buttons and OAuth
+            Lantern catalogs SaaS apps as you browse — logins, SSO buttons and OAuth
             grants. Keep browsing, or load a sample inventory to explore the dashboard.
           </p>
           <button
             onClick={seed}
-            className="mt-4 w-full py-2 rounded-lg bg-owl text-ink text-[13px] font-semibold hover:bg-owl/90 transition-colors"
+            className="mt-4 w-full py-2 rounded-lg bg-accent text-ink text-[13px] font-semibold hover:bg-accent/90 transition-colors"
           >
             Load sample data
           </button>
@@ -97,7 +92,7 @@ export default function App() {
               <span className="text-sm text-neutral-400">SaaS apps discovered</span>
             </div>
             {s.newThisWeek > 0 && (
-              <div className="text-[11px] text-owl mt-0.5">+{s.newThisWeek} new this week</div>
+              <div className="text-[11px] text-accent mt-0.5">+{s.newThisWeek} new this week</div>
             )}
           </div>
 

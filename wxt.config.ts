@@ -5,12 +5,12 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'OwlScout — Shadow IT Discovery',
+    name: 'Lantern — Shadow IT Discovery',
     description:
       'Discovers the SaaS apps your browser touches, maps OAuth grants against corporate identity, and scores shadow-IT risk — all locally.',
     permissions: ['storage', 'tabs', 'webNavigation'],
     host_permissions: ['<all_urls>'],
-    action: { default_title: 'OwlScout' },
+    action: { default_title: 'Lantern' },
   },
   vite: () => ({
     plugins: [tailwindcss()],

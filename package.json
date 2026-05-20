@@ -1,5 +1,5 @@
 {
-  "name": "owlscout",
+  "name": "lantern",
   "description": "Chrome MV3 extension that discovers shadow-IT SaaS apps, maps OAuth grants, and scores risk — all locally.",
   "private": true,
   "version": "1.0.0",
@@ -27,6 +27,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "@wxt-dev/module-react": "^1.1.5",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
     "vite": "^8.0.13",

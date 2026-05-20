@@ -6,7 +6,7 @@ import type { AppEvent, DiscoveredApp } from './types';
 // and the popup / options pages (reads) — same extension origin.
 // ─────────────────────────────────────────────────────────────
 
-interface OwlScoutDB extends DBSchema {
+interface LanternDB extends DBSchema {
   apps: {
     key: string;
     value: DiscoveredApp;
@@ -19,11 +19,11 @@ interface OwlScoutDB extends DBSchema {
   };
 }
 
-let dbPromise: Promise<IDBPDatabase<OwlScoutDB>> | null = null;
+let dbPromise: Promise<IDBPDatabase<LanternDB>> | null = null;
 
-function getDb(): Promise<IDBPDatabase<OwlScoutDB>> {
+function getDb(): Promise<IDBPDatabase<LanternDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<OwlScoutDB>('owlscout', 1, {
+    dbPromise = openDB<LanternDB>('lantern', 1, {
       upgrade(db) {
         const apps = db.createObjectStore('apps', { keyPath: 'id' });
         apps.createIndex('by-lastSeen', 'lastSeen');

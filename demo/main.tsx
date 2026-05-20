@@ -5,7 +5,7 @@ import { getAllApps, replaceAll } from '@/lib/db';
 import { buildDemoData } from '@/lib/demo-data';
 import '@/assets/app.css';
 
-// Standalone hosted build of the OwlScout dashboard. The dashboard is
+// Standalone hosted build of the Lantern dashboard. The dashboard is
 // browser-extension-API-free (it reads IndexedDB directly), so it runs
 // as a normal web app. Seed sample data on first load so visitors land
 // on a populated dashboard.

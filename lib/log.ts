@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // A small ring-buffer activity log in chrome.storage.local. The
 // service worker appends to it; the dashboard renders it live via
-// storage.onChanged. Lets you watch OwlScout work without ever
+// storage.onChanged. Lets you watch Lantern work without ever
 // opening DevTools. No-ops gracefully outside an extension context
 // (e.g. the hosted dashboard demo).
 // ─────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ export interface SignalLogEntry {
   message: string;
 }
 
-const KEY = 'owlscout:signal-log';
+const KEY = 'lantern:signal-log';
 const MAX = 80;
 
 // chrome.* is a plain global — referencing it needs no import and is
