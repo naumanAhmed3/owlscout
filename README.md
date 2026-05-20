@@ -5,7 +5,7 @@ actually touches, maps **OAuth grants against corporate identity**, and
 scores **shadow-IT risk** — entirely locally. Nothing ever leaves the
 browser.
 
-**[▶ Live dashboard demo](https://lantern-shadow-it.vercel.app)** · loads a
+**[▶ Live dashboard demo](https://lantern-chi-one.vercel.app)** · loads a
 realistic seeded inventory so you can explore without installing.
 
 ---
