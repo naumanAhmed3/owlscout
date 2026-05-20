@@ -17,6 +17,7 @@ import { summarize } from '@/lib/inventory';
 import { buildDemoData } from '@/lib/demo-data';
 import { CATEGORY_LABEL, RISK_META, relativeTime } from '@/lib/ui';
 import {
+  ActivityLog,
   AppDrawer,
   AppTile,
   AuthChips,
@@ -233,8 +234,9 @@ export default function App() {
               />
             </div>
 
-            <div className="mt-3">
+            <div className="grid lg:grid-cols-2 gap-3 mt-3">
               <RiskBar summary={summary} />
+              <ActivityLog />
             </div>
 
             {/* Toolbar */}

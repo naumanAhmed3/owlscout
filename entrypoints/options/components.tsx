@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Clock,
   Fingerprint,
   KeyRound,
+  Radio,
   ShieldCheck,
   Sparkles,
   X,
@@ -10,6 +11,14 @@ import {
 import type { AppEvent, DiscoveredApp, InventorySummary } from '@/lib/types';
 import { getEventsForApp } from '@/lib/db';
 import { prettyScope } from '@/lib/oauth';
+import {
+  clearLog,
+  getLog,
+  hasSignalLog,
+  onLogChange,
+  type SignalKind,
+  type SignalLogEntry,
+} from '@/lib/log';
 import {
   AUTH_LABEL,
   CATEGORY_LABEL,
@@ -338,6 +347,84 @@ function Section({
         <span className="text-[11px] uppercase tracking-wider text-neutral-400">{title}</span>
       </div>
       {children}
+    </div>
+  );
+}
+
+// ── Live activity log ────────────────────────────────────────
+const SIGNAL_META: Record<SignalKind, { color: string; label: string }> = {
+  system: { color: 'bg-neutral-500', label: 'System' },
+  'idp-nav': { color: 'bg-sky-400', label: 'Identity' },
+  oauth: { color: 'bg-owl', label: 'OAuth' },
+  auth: { color: 'bg-violet-400', label: 'Login' },
+  visit: { color: 'bg-neutral-600', label: 'Visit' },
+};
+
+export function ActivityLog() {
+  const [entries, setEntries] = useState<SignalLogEntry[]>([]);
+  const refresh = useCallback(() => {
+    void getLog().then(setEntries);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    return onLogChange(refresh);
+  }, [refresh]);
+
+  const inExtension = hasSignalLog();
+
+  return (
+    <div className="bg-surface rounded-xl ring-1 ring-edge p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Radio className="w-4 h-4 text-owl" />
+          <span className="text-[11px] uppercase tracking-wider text-neutral-400">
+            Live activity
+          </span>
+          {inExtension && (
+            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              watching
+            </span>
+          )}
+        </div>
+        {entries.length > 0 && (
+          <button
+            onClick={() => void clearLog().then(refresh)}
+            className="text-[11px] text-neutral-500 hover:text-neutral-300"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {!inExtension ? (
+        <p className="text-xs text-neutral-600 py-4 text-center">
+          Live activity streams here when OwlScout runs as an installed extension.
+        </p>
+      ) : entries.length === 0 ? (
+        <p className="text-xs text-neutral-600 py-4 text-center">
+          Nothing yet. Browse to a SaaS app or sign in with Google / GitHub —
+          events appear here in real time.
+        </p>
+      ) : (
+        <div className="max-h-56 overflow-y-auto -mx-1 px-1 space-y-0.5">
+          {entries.map((e, i) => (
+            <div
+              key={`${e.at}-${i}`}
+              className="flex items-start gap-2.5 py-1.5 text-xs"
+            >
+              <span
+                className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${SIGNAL_META[e.kind].color}`}
+              />
+              <span className="text-neutral-300 flex-1 leading-snug">{e.message}</span>
+              <span className="text-neutral-600 font-mono shrink-0">
+                {relativeTime(e.at)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

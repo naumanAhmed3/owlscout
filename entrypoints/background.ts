@@ -2,14 +2,15 @@ import type { RuntimeMessage } from '@/lib/types';
 import { lookupCatalog } from '@/lib/catalog';
 import { identityProviderFor, parseOAuthGrant } from '@/lib/oauth';
 import { recordAuthSignal, recordOAuthGrant, recordVisit } from '@/lib/inventory';
+import { appendLog } from '@/lib/log';
 
 // ─────────────────────────────────────────────────────────────
 // OwlScout service worker — the discovery brain.
 //  • webNavigation  → catch OAuth consent flows
 //  • tabs.onUpdated → catch visits to known SaaS apps
 //  • runtime.onMessage → content-script auth-surface signals
-// Everything stays local in IndexedDB; nothing leaves the browser.
-// The UI (popup / options) reads that same IndexedDB directly.
+// Everything stays local; nothing leaves the browser. The UI reads
+// IndexedDB directly and the live activity log from storage.local.
 // ─────────────────────────────────────────────────────────────
 
 export default defineBackground(() => {
@@ -33,6 +34,7 @@ export default defineBackground(() => {
     const grant = parseOAuthGrant(details.url);
     if (!grant) {
       console.info('[OwlScout] identity-provider navigation (no client_id):', hostname);
+      void appendLog('idp-nav', `Visited ${hostname} (sign-in page, no OAuth params)`);
       return;
     }
 
@@ -57,10 +59,17 @@ export default defineBackground(() => {
       console.info(
         `[OwlScout] OAuth grant — ${grant.provider} → ${host} · ${grant.scopes.length} scope(s)`,
       );
+      void appendLog(
+        'oauth',
+        `OAuth grant — ${grant.provider} → ${host} · ${grant.scopes.length} scope(s)` +
+          (grant.sensitiveScopes.length ? ` · ${grant.sensitiveScopes.length} broad` : ''),
+      );
       void recordOAuthGrant(grant, host);
     } else {
-      console.info(
-        `[OwlScout] OAuth flow seen (${grant.provider}) but could not attribute an app`,
+      console.info(`[OwlScout] OAuth flow seen (${grant.provider}) — unattributed`);
+      void appendLog(
+        'oauth',
+        `OAuth flow via ${grant.provider} seen, but the requesting app could not be identified`,
       );
     }
   });
@@ -76,14 +85,13 @@ export default defineBackground(() => {
     } catch {
       return;
     }
-    // Remember the tab's app host — but never an identity provider.
     if (!identityProviderFor(host)) {
       tabAppHost.set(tabId, host);
     }
-    // Auto-record catalogued apps; unrecognised apps are discovered
-    // through the content script's auth-surface signal.
-    if (lookupCatalog(host)) {
+    const entry = lookupCatalog(host);
+    if (entry) {
       void recordVisit(host);
+      void appendLog('visit', `Visited ${entry.name}`);
     }
   });
 
@@ -94,10 +102,20 @@ export default defineBackground(() => {
   // ── Content-script auth-surface signals ────────────────────
   browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
     if (message.kind === 'page-auth-signal') {
+      const { hostname, authMethods, hasPasswordField } = message.payload;
+      const surface = [
+        ...authMethods,
+        ...(hasPasswordField ? ['password'] : []),
+      ];
+      void appendLog(
+        'auth',
+        `Login surface on ${hostname}: ${surface.join(', ') || 'none'}`,
+      );
       return recordAuthSignal(message.payload).then(() => ({ ok: true }));
     }
     return undefined;
   });
 
   console.info('[OwlScout] service worker ready — watching for SaaS + OAuth activity');
+  void appendLog('system', 'OwlScout is watching — browse normally');
 });
