@@ -157,16 +157,18 @@ export default function App() {
             </div>
             <div>
               <div className="font-semibold leading-none">Lantern</div>
-              <div className="text-[11px] text-neutral-500 mt-0.5">
+              <div className="hidden sm:block text-[11px] text-neutral-500 mt-0.5">
                 Shadow-IT discovery · scanned locally, nothing leaves your browser
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <IconButton onClick={load} title="Refresh">
-              <RefreshCw className="w-4 h-4" />
-            </IconButton>
-            <div className="relative">
+            <div className="hidden sm:block">
+              <IconButton onClick={load} title="Refresh">
+                <RefreshCw className="w-4 h-4" />
+              </IconButton>
+            </div>
+            <div className="hidden sm:block relative">
               <button
                 onClick={() => setExportOpen((v) => !v)}
                 disabled={apps.length === 0}
@@ -198,9 +200,11 @@ export default function App() {
               <Sparkles className="w-4 h-4" /> Sample data
             </button>
             {apps.length > 0 && (
-              <IconButton onClick={wipe} title="Clear inventory">
-                <Trash2 className="w-4 h-4" />
-              </IconButton>
+              <div className="hidden sm:block">
+                <IconButton onClick={wipe} title="Clear inventory">
+                  <Trash2 className="w-4 h-4" />
+                </IconButton>
+              </div>
             )}
           </div>
         </div>
